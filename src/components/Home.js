@@ -10,83 +10,143 @@ const Home = () => {
 
   const fetchTodoList = async () => {
     setLoading(true);
+
     try {
+      // Check local storage for existing todos
+      const getLocalStorageTodos =
+        JSON.parse(localStorage.getItem("todos")) || [];
+
+      // Settings the todos of local storage if it has data
+      if (getLocalStorageTodos.length > 0) {
+        setTodos(getLocalStorageTodos);
+        setLoading(false);
+        return;
+      }
+
+      // Make API call only if local storage is empty
       const response = await axios.get(
         "https://jsonplaceholder.typicode.com/todos"
       );
       setTodos(response.data);
+
+      // Update local storage with the API data
+      localStorage.setItem("todos", JSON.stringify(response.data));
+
       setLoading(false);
     } catch (error) {
-      setError("Cant able to fetch the data" + error);
+      setError("Can't able to fetch the data" + error);
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchTodoList();
   }, []);
+
+  const setItemsToLocalStorage = (updatedTodos) => {
+    localStorage.setItem("todos", JSON.stringify(updatedTodos));
+  };
 
   if (loading) {
     return <div>Loading..</div>;
   }
 
   const handleDelete = async (id) => {
-    await axios.delete(`https://jsonplaceholder.typicode.com/todos/${id}`);
-    const deleteTodos = todos.filter((todo) => todo.id !== id);
-    setTodos(deleteTodos);
+    try {
+      await axios.delete(`https://jsonplaceholder.typicode.com/todos/${id}`);
+      const updatedTodos = todos.filter((todo) => todo.id !== id);
+      setTodos(updatedTodos);
+      setItemsToLocalStorage(updatedTodos);
+    } catch (error) {
+      setError("Cant able to delete the item" + error);
+    }
   };
 
   const handleUpdateTask = async (id) => {
-    await axios.patch(`https://jsonplaceholder.typicode.com/todos/${id}`, {
-      completed: true,
-    });
-    //Need to update the state when we do patch operation
-    setTodos((todos) =>
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-      )
-    );
+    try {
+      await axios.patch(`https://jsonplaceholder.typicode.com/todos/${id}`, {
+        completed: true,
+      });
+
+      setTodos((todos) =>
+        todos.map((todo) =>
+          todo.id === id ? { ...todo, completed: !todo.completed } : todo
+        )
+      );
+
+      setItemsToLocalStorage(todos);
+    } catch (error) {
+      setError("Can't update the task" + error);
+    }
   };
 
-  const handleAddTask = async () => {
+  const handleAddTask = () => {
     const newTask = {
       userId: 1,
       title: title,
       completed: false,
     };
-    // Update the local state to include the new task
-    setTodos((prevTodos) => [newTask, ...prevTodos]);
-    setTitle("")
+    setTodos((todos) => [newTask, ...todos]);
+    setItemsToLocalStorage([newTask, ...todos]);
+    setTitle("");
   };
 
   return (
-    <div className="home-page">
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <div>
-        <input
-          type="text"
-          placeholder="Enter the task"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <button onClick={handleAddTask}>Add Task</button>
-      </div>
-      <table className="todo-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>UserId</th>
-            <th>Title</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <TodoList
-            todos={todos}
-            handleDelete={handleDelete}
-            handleUpdateTask={handleUpdateTask}
+    <div>
+      <nav className="navbar">
+        <h1 className="logo">TodoList</h1>
+      </nav>
+      <div className="home-page">
+        {error && <p style={{ color: "red" }}>{error}</p>}
+        <div style={{ marginBottom: "10px" }} className="add-task-container">
+          <input
+            type="text"
+            placeholder="Enter the task"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{
+              padding: "8px",
+              marginRight: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+              fontSize: "14px",
+              width: "200px",
+            }}
           />
-        </tbody>
-      </table>
+          <button
+            onClick={handleAddTask}
+            style={{
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #007BFF",
+              backgroundColor: "#007BFF",
+              color: "#fff",
+              cursor: "pointer",
+              fontSize: "14px",
+            }}
+          >
+            Add Task
+          </button>
+        </div>
+
+        <table className="todo-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>UserId</th>
+              <th>Title</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <TodoList
+              todos={todos}
+              handleDelete={handleDelete}
+              handleUpdateTask={handleUpdateTask}
+            />
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
